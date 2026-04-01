@@ -1,0 +1,73 @@
+@startuml Registration Check Flow
+
+title Dynamic View - Use Case 1 Registration Check (Async External Enrichment)
+
+autonumber
+skinparam sequenceMessageAlign center
+skinparam ParticipantPadding 25
+skinparam BoxPadding 10
+skinparam ResponseMessageBelowArrow true
+
+actor Lawyer
+participant "REST API" as API
+participant "Text Check Service" as TextService
+participant "Embedding Model" as Model
+participant "Embedding Dataset" as Dataset
+participant "Search Indexes" as Indexes
+database "Trademark DB" as DB
+participant "Async Job Queue" as Queue
+participant "External Online Search Worker" as Worker
+participant "External Online Sources" as Sources
+participant "Result Delivery Service" as Delivery
+participant "Similarity Engine" as Similarity
+participant "Ranking Engine" as Ranking
+
+Lawyer -> API: Submit naming + Nice classes
+API -> API: Validate request
+API -> API: Orchestrate workflow
+API -> API: Normalize naming input
+API -> TextService: Run text-only internal check with canonical input
+
+TextService -> DB: Filter candidates by Nice classes
+DB --> TextService: Candidate ids from trademark DB
+
+par Semantic search
+  TextService -> Model: Generate embedding for input naming
+  Model --> TextService: Query embedding
+  TextService -> Dataset: Find nearest semantic candidates
+  Dataset --> TextService: Semantic shortlist
+else Phonetic and text search
+  TextService -> Indexes: Search by phonetic and text keys
+  Indexes --> TextService: Phonetic/text shortlist
+end
+
+TextService -> TextService: Merge candidate pools
+
+loop For each candidate
+  TextService -> Similarity: Calculate detailed similarity features
+  Similarity --> TextService: Semantic, phonetic, text, graphic, legal features
+end
+
+TextService -> Ranking: Build final similarity percentage and sort results
+Ranking --> TextService: Top-200 internal ranked conflicts
+
+API -> Queue: Create async external search job
+Queue --> Worker: Deliver job
+Worker -> Sources: Search online external sources
+Sources --> Worker: External candidate set
+Worker -> Ranking: Build Top-200 external ranking
+Ranking --> Worker: Top-200 external ranked conflicts
+Worker -> Delivery: Send delayed external result set
+Delivery --> API: Top-200 external results (later)
+API --> Lawyer: External enrichment update
+
+TextService --> API: Top-200 internal result
+API --> Lawyer: Top-200 internal results (fast)
+
+note right of TextService
+Responsibility: text similarity only.
+No external workflow orchestration.
+end note
+
+@enduml
+

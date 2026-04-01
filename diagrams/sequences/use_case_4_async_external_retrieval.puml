@@ -1,0 +1,36 @@
+@startuml Async External Retrieval Flow
+
+title Use Case 4 - Async External Online Retrieval and Late Delivery
+
+autonumber
+skinparam sequenceMessageAlign center
+skinparam ParticipantPadding 25
+skinparam BoxPadding 10
+skinparam ResponseMessageBelowArrow true
+
+actor Lawyer
+participant "REST API" as API
+participant "Text Check Service" as TextService
+participant "Async Job Queue" as Queue
+participant "External Online Search Worker" as Worker
+participant "External Online Sources" as Sources
+participant "Result Delivery Service" as Delivery
+
+Lawyer -> API: Submit naming check request
+API -> API: Orchestrate workflow
+API -> API: Normalize naming input
+API -> TextService: Run text-only internal search with canonical input
+TextService --> API: Top-200 internal results ready
+API --> Lawyer: Return Top-200 internal results (fast)
+
+API -> Queue: Create async external retrieval job
+Queue --> Worker: Deliver async job
+Worker -> Sources: Search external online sources
+Sources --> Worker: External candidate set
+Worker -> Worker: Rank Top-200 external results
+Worker -> Delivery: External results ready
+Delivery --> API: Top-200 external results (later)
+API --> Lawyer: Deliver Top-200 external results (later)
+
+@enduml
+

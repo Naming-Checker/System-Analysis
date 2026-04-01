@@ -1,0 +1,44 @@
+@startuml NamingCheck_C4_Container
+title C4 Level 2 (Container) - Naming Check System
+
+!include <C4/C4_Container>
+
+LAYOUT_TOP_DOWN()
+
+AddRelTag("async", $lineStyle=DashedLine(), $legendText="Asynchronous processing or webhook delivery")
+
+Person(lawyer, "Lawyer", "End user (person)")
+
+System_Boundary(naming_system, "Naming Check System") {
+  Container(rest_api, "REST API", "Python, FastAPI", "Returns Stage 1 and accepts Stage 2 webhook updates")
+  Container(text_service, "Text Check Service", "Python", "Text-only analysis and candidate search")
+  ContainerQueue(queue, "Async Job Queue", "Message queue", "Buffers deduplicated external jobs and is monitored for DLQ growth")
+  Container(worker, "External Search Worker", "Python worker", "Executes external retrieval with 3 retries, exponential backoff and 60s per-source timeout")
+  Container(delivery, "Result Delivery Service", "Python service", "Delivers partial or final Stage 2 results back to API via webhook")
+  ContainerDb(trademark_db, "Trademark DB", "PostgreSQL", "Registered trademarks and related data")
+  ContainerDb(search_store, "Search and Vector Store", "ClickHouse / index + embeddings", "Lexical and vector search index")
+  ContainerDb(async_store, "Async Result Store", "Database", "Stores partial and final external results before webhook delivery")
+}
+
+System_Ext(external_sources, "External Online Sources", "External System")
+
+Rel_Down(lawyer, rest_api, "Request", "HTTPS")
+
+Rel_Down(rest_api, text_service, "Text check (canonical input)")
+Rel_Down(text_service, trademark_db, "Candidate filter", "SQL")
+Rel_Down(text_service, search_store, "Lexical/vector search")
+Rel_Up(text_service, rest_api, "Internal Top-200")
+
+Rel_Down(rest_api, queue, "Enqueue external job (dedup by naming + MKTU)", "", "", "", "async")
+Rel_Down(queue, worker, "Execute job", "", "", "", "async")
+Rel_Down(worker, external_sources, "Online retrieval", "timeout 60s, retry x3", "", "", "async")
+Rel_Down(worker, async_store, "Store partial or final external results", "", "", "", "async")
+Rel_Down(worker, delivery, "Publish unordered external updates", "", "", "", "async")
+Rel_Up(delivery, rest_api, "Webhook callback (partial/final)", "HTTPS", "", "", "async")
+
+Rel_Up(rest_api, lawyer, "Stage 1 response + Stage 2 completion", "HTTPS")
+
+SHOW_LEGEND()
+
+@enduml
+

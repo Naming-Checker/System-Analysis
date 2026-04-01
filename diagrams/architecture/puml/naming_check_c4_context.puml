@@ -1,0 +1,21 @@
+@startuml NamingCheck_C4_Context
+title C4 Level 1 (Context) - Naming Check System
+
+!include <C4/C4_Context>
+
+LAYOUT_TOP_DOWN()
+
+Person(lawyer, "Lawyer", "Person using the service")
+System(naming_system, "Naming Check System", "System of Interest")
+
+System_Ext(client_ui, "Client App / UI", "External System")
+System_Ext(external_sources, "External Online Sources", "External data providers for Stage 2")
+
+Rel_Down(lawyer, client_ui, "Uses")
+Rel_Down(client_ui, naming_system, "Sends naming check request")
+Rel_Down(naming_system, external_sources, "Async online lookup")
+Rel_Up(naming_system, client_ui, "Stage 1 response + Stage 2 webhook updates (partial allowed)")
+
+SHOW_LEGEND()
+
+@enduml

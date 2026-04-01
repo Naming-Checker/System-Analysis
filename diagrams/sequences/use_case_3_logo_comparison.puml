@@ -1,0 +1,59 @@
+@startuml Logo Comparison Flow
+
+title Use Case 3 - Logo Infringement Check (Optional)
+
+autonumber
+skinparam sequenceMessageAlign center
+skinparam ParticipantPadding 25
+skinparam BoxPadding 10
+skinparam ResponseMessageBelowArrow true
+
+actor Lawyer
+participant "REST API" as API
+participant "Logo Check Service" as LogoService
+participant "Logo Preprocessing" as LogoPreprocess
+participant "Logo Feature Extractor" as FeatureExtractor
+participant "Visual Similarity Engine" as VisualSimilarity
+database "Trademark DB" as DB
+participant "Async Job Queue" as Queue
+participant "External Online Search Worker" as Worker
+participant "External Online Sources" as Sources
+participant "Result Delivery Service" as Delivery
+
+Lawyer -> API: Submit reference logo + suspicious logo
+API -> API: Validate request
+API -> LogoService: Start logo comparison
+
+LogoService -> LogoPreprocess: Normalize both logo files
+LogoPreprocess --> LogoService: Prepared visual inputs
+
+LogoService -> FeatureExtractor: Extract visual features and text-in-logo if available
+FeatureExtractor --> LogoService: Feature vectors
+
+LogoService -> DB: Find Top-200 internal logo candidates
+DB --> LogoService: Internal logo candidates
+loop For each internal logo candidate
+  LogoService -> VisualSimilarity: Compare reference logo with internal candidate
+  VisualSimilarity --> LogoService: Visual similarity score
+end
+
+LogoService -> LogoService: Build Top-200 internal ranking
+API -> Queue: Create async external logo search job
+Queue --> Worker: Deliver job
+
+Worker -> Sources: Search online external sources for logo candidates
+Sources --> Worker: External logo candidates
+loop For each external logo candidate
+  Worker -> VisualSimilarity: Compare reference logo with external candidate
+  VisualSimilarity --> Worker: Visual similarity score
+end
+Worker -> Worker: Build Top-200 external ranking
+Worker -> Delivery: Send delayed external logo result set
+Delivery --> API: Top-200 external logo results (later)
+API --> Lawyer: External logo enrichment update
+
+LogoService --> API: Top-200 internal logo results
+API --> Lawyer: Top-200 internal logo results (fast) + visual summary
+
+@enduml
+

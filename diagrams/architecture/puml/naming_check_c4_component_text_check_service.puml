@@ -1,0 +1,40 @@
+@startuml NamingCheck_Text_Check_Service_Components
+title C4 Level 3 (Component) - Text Check Service
+
+!include <C4/C4_Component>
+
+LAYOUT_TOP_DOWN()
+
+Container_Boundary(text_service_boundary, "Text Check Service") {
+  Component(mktu_prefilter, "MKTU Prefilter", "Python", "Filters candidates by Nice classification (MKTU)")
+  Component(naming_normalization, "Naming Normalization", "Python", "Normalizes and cleans naming before search")
+  Component(embedding_search, "Embedding Semantic Search", "Python", "Semantic search via embeddings")
+  Component(lexical_phonetic_search, "Lexical / Phonetic / Linguistic Search", "Python", "Lexical, phonetic and string-based search")
+  Component(trademark_candidate_fetcher, "Trademark Candidate Fetcher", "Python", "Loads full trademark records for candidates")
+  Component(similarity_scoring, "Similarity Scoring & Top-200 Ranking", "Python", "Combines metrics and produces Top-200 list")
+}
+
+ContainerDb(trademark_db, "Trademark DB", "PostgreSQL", "Registered trademarks and related data")
+ContainerDb(search_store, "Search and Vector Store", "ClickHouse / index + embeddings", "Lexical and vector search index")
+
+Rel_Down(mktu_prefilter, trademark_db, "Select candidates by MKTU", "SQL")
+
+Rel_Down(naming_normalization, search_store, "Use normalized canonical form for search")
+
+Rel_Down(embedding_search, search_store, "Vector similarity search")
+Rel_Down(lexical_phonetic_search, search_store, "Lexical / phonetic search over indexes")
+
+Rel_Down(trademark_candidate_fetcher, trademark_db, "Load trademark records", "SQL")
+
+Rel_Down(mktu_prefilter, naming_normalization, "Filtered naming and candidate set")
+Rel_Down(naming_normalization, embedding_search, "Normalized naming")
+Rel_Down(naming_normalization, lexical_phonetic_search, "Normalized naming")
+
+Rel_Down(embedding_search, similarity_scoring, "Semantic candidates + scores")
+Rel_Down(lexical_phonetic_search, similarity_scoring, "Lexical / phonetic candidates + scores")
+Rel_Down(trademark_candidate_fetcher, similarity_scoring, "Full trademark data")
+
+SHOW_LEGEND()
+
+@enduml
+

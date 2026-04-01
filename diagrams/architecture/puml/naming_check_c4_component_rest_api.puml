@@ -1,0 +1,40 @@
+@startuml NamingCheck_REST_API_Components
+title C4 Level 3 (Component) - REST API
+
+!include <C4/C4_Component>
+
+LAYOUT_TOP_DOWN()
+
+AddRelTag("async", $lineStyle=DashedLine(), $legendText="Asynchronous processing or webhook delivery")
+
+Person(lawyer, "Lawyer", "End user (person)")
+
+Container_Boundary(rest_api_boundary, "REST API") {
+  Component(req_validator, "Request Validator", "Python", "Validates and normalizes incoming requests")
+  Component(scenario_router, "Scenario Router", "Python", "Routes to registration or infringement flows")
+  Component(stage1_orchestrator, "Stage 1 Orchestrator", "Python", "Coordinates internal text check and Top-200")
+  Component(stage2_job_dispatcher, "Stage 2 Job Dispatcher", "Python", "Builds dedup key from naming + MKTU and enqueues Stage 2 jobs")
+  Component(callback_handler, "Callback Handler", "Python", "Handles inbound webhook updates idempotently and accepts partial unordered results")
+}
+
+Container(text_service, "Text Check Service", "Python", "Text-only analysis and candidate search")
+ContainerQueue(queue, "Async Job Queue", "Message queue", "Buffers external search jobs")
+Container(delivery, "Result Delivery Service", "Python service", "Sends partial or final webhook callbacks to REST API")
+
+Rel_Down(lawyer, req_validator, "Sends REST request", "HTTPS/JSON")
+Rel_Down(req_validator, scenario_router, "Valid request")
+
+Rel_Down(scenario_router, stage1_orchestrator, "Route to naming check flow")
+Rel_Down(stage1_orchestrator, text_service, "Text check (canonical input)")
+Rel_Up(text_service, stage1_orchestrator, "Internal Top-200")
+
+Rel_Down(scenario_router, stage2_job_dispatcher, "If external stage required")
+Rel_Down(stage2_job_dispatcher, queue, "Enqueue deduplicated external job", "", "", "", "async")
+
+Rel_Down(delivery, callback_handler, "Webhook callback (partial/final)", "HTTPS", "", "", "async")
+Rel_Up(callback_handler, lawyer, "Stage 2 completion exposed via API", "HTTPS/JSON")
+
+SHOW_LEGEND()
+
+@enduml
+

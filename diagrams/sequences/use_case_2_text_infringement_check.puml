@@ -1,0 +1,60 @@
+@startuml Text Infringement Check Flow
+
+title Use Case 2 - Text Infringement Check
+
+autonumber
+skinparam sequenceMessageAlign center
+skinparam ParticipantPadding 25
+skinparam BoxPadding 10
+skinparam ResponseMessageBelowArrow true
+
+actor Lawyer
+participant "REST API" as API
+participant "Text Check Service" as TextService
+database "Trademark DB" as DB
+participant "Async Job Queue" as Queue
+participant "External Online Search Worker" as Worker
+participant "External Online Sources" as Sources
+participant "Result Delivery Service" as Delivery
+participant "Similarity Engine" as Similarity
+
+Lawyer -> API: Submit protected naming + suspicious naming
+API -> API: Validate request
+API -> API: Orchestrate workflow
+API -> API: Normalize protected naming
+API -> API: Normalize suspicious naming
+API -> TextService: Run text-only infringement check with canonical inputs
+
+TextService -> DB: Find Top-200 internal candidates for suspicious naming
+DB --> TextService: Candidate list
+
+loop For each internal candidate
+  TextService -> Similarity: Compare protected naming with candidate
+  Similarity --> TextService: Similarity score
+end
+
+TextService -> TextService: Build Top-200 internal ranking
+API -> Queue: Create async external search job
+Queue --> Worker: Deliver job
+
+Worker -> Sources: Search online external sources for suspicious naming
+Sources --> Worker: External candidate set
+loop For each external candidate
+  Worker -> Similarity: Compare protected naming with external candidate
+  Similarity --> Worker: Similarity score
+end
+Worker -> Worker: Build Top-200 external ranking
+Worker -> Delivery: Send delayed external result set
+Delivery --> API: Top-200 external results (later)
+API --> Lawyer: External enrichment update
+
+TextService --> API: Top-200 internal comparison result
+API --> Lawyer: Top-200 internal results (fast) + similarity explanation
+
+note right of TextService
+Responsibility: text similarity only.
+No external workflow orchestration.
+end note
+
+@enduml
+
