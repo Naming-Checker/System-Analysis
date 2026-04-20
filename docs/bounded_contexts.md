@@ -173,4 +173,17 @@ Logo Comparison Context
 - `Source Aggregation Context` и `Model and Index Management Context` можно рассматривать как infrastructural/supporting contexts.
 - `Logo Comparison Context` лучше сразу проектировать как отдельно выделяемый контур, даже если он появится позже.
 
+---
+
+## 10. Связь с доменной моделью
+
+Для реализации в backend используется единая DDD-модель с общими объектами:
+
+- aggregate root `CheckRequest`;
+- результат `ConflictResultSet`;
+- async-единица `Stage2Job`;
+- value objects: `NamingText`, `MktuClassSet`, `LogoAssetRef`, `SimilarityScore`.
+
+Подробная спецификация: [domain_model.md](domain_model.md).
+
 

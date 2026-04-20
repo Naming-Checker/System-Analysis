@@ -336,3 +336,5 @@ unordered delivery и несколько batch-ов по одному `correlati
 - Stage 2 доставляется только через webhook и может быть частичным.
 - Для `logo comparison` `asset_ref` считается временным placeholder-полем до утверждения
   окончательного file transport.
+- Доменные объекты backend описаны отдельно и маппятся в контракт через адаптерный слой:
+  [domain_model.md](domain_model.md).
