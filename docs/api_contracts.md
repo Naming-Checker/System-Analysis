@@ -19,10 +19,8 @@ flowchart TD
 
 | Method | Path | Назначение |
 | --- | --- | --- |
-| `POST` | `/api/v1/registration-check` | Синхронный Stage 1 для проверки возможности регистрации |
-| `POST` | `/api/v1/text-infringement` | Синхронный Stage 1 для попарной текстовой проверки нарушения |
-| `POST` | `/api/v1/logo-comparison` | Синхронный Stage 1 для сравнения логотипов по placeholder-контракту |
 | `POST` | `/api/v1/logo-similarity/search` | Прокси-поиск похожих логотипов через `visual-model-service` |
+| `GET` | `/api/v1/logo-similarity/preview` | Прокси-выдача изображения по `logo_path` для UI preview |
 | `POST` | `/api/v1/text-similarity/search` | Прокси-поиск похожих названий через `text-model-service` |
 | `POST` | `/api/v1/webhooks/stage2-results` | Приём частичных или финальных результатов Stage 2 |
 
@@ -94,143 +92,6 @@ flowchart TD
 | `422` | schema validation error на уровне API |
 | `500` | внутренняя ошибка сервиса |
 
-## `POST /api/v1/registration-check`
-
-Возвращает внутренний результат Stage 1 синхронно и сообщает, что внешний Stage 2 будет
-доставлен отдельно в webhook-контур.
-
-### Request
-
-```json
-{
-  "naming": "PROBIMAX",
-  "mktu_codes": [5, 25]
-}
-```
-
-### Response `200 OK`
-
-```json
-{
-  "request_id": "reg-probimax-001",
-  "flow": "registration_check",
-  "status": "completed",
-  "naming": "PROBIMAX",
-  "mktu_codes": [5, 25],
-  "internal_results": [
-    {
-      "candidate_id": "tm-001",
-      "candidate_name": "PROBI MAX",
-      "source": "trademark_db",
-      "mktu_codes": [5, 25],
-      "similarity": 91.4,
-      "summary": "High phonetic overlap in the same Nice classes.",
-      "similarity_breakdown": {
-        "semantic": 84.0,
-        "phonetic": 96.0,
-        "graphic": 88.0,
-        "legal": 90.0,
-        "visual": null
-      }
-    }
-  ],
-  "stage2": {
-    "status": "accepted",
-    "delivery": "webhook",
-    "correlation_id": "reg-probimax-001",
-    "partial_results_allowed": true,
-    "webhook_path": "/api/v1/webhooks/stage2-results"
-  },
-  "meta": {
-    "internal_result_count": 1,
-    "result_limit": 200,
-    "stage2_enabled": true
-  }
-}
-```
-
-## `POST /api/v1/text-infringement`
-
-Сравнивает защищаемый нейминг и спорное обозначение, возвращает pairwise similarity и
-внутренний shortlist.
-
-### Request
-
-```json
-{
-  "protected_naming": "PROBIMAX",
-  "suspicious_naming": "PROBI MAX",
-  "mktu_codes": [5]
-}
-```
-
-### Response `200 OK`
-
-```json
-{
-  "request_id": "txt-probi-max-001",
-  "flow": "text_infringement",
-  "status": "completed",
-  "protected_naming": "PROBIMAX",
-  "suspicious_naming": "PROBI MAX",
-  "mktu_codes": [5],
-  "pair_similarity": 94.2,
-  "internal_results": [
-    {
-      "candidate_id": "tm-002",
-      "candidate_name": "PROBI MAX",
-      "source": "trademark_db",
-      "mktu_codes": [5],
-      "similarity": 94.2,
-      "summary": "Pairwise comparison found the same dominant verbal core.",
-      "similarity_breakdown": {
-        "semantic": 82.0,
-        "phonetic": 98.0,
-        "graphic": 93.0,
-        "legal": 95.0,
-        "visual": null
-      }
-    }
-  ],
-  "stage2": {
-    "status": "accepted",
-    "delivery": "webhook",
-    "correlation_id": "txt-probi-max-001",
-    "partial_results_allowed": true,
-    "webhook_path": "/api/v1/webhooks/stage2-results"
-  },
-  "meta": {
-    "internal_result_count": 1,
-    "result_limit": 200,
-    "stage2_enabled": true
-  }
-}
-```
-
-## `POST /api/v1/logo-comparison`
-
-Текущий контракт фиксирует только placeholder-структуру для передачи логотипов. Окончательный
-формат бинарных данных будет уточнён отдельно.
-
-### Request
-
-```json
-{
-  "reference_logo": {
-    "asset_ref": "logo://protected/probimax-main",
-    "media_type": "image/png",
-    "filename": "probimax.png"
-  },
-  "suspicious_logo": {
-    "asset_ref": "logo://suspicious/probi-market",
-    "media_type": "image/png",
-    "filename": "probi-market.png"
-  },
-  "mktu_codes": [35],
-  "notes": "Placeholder contract until final binary transport is approved."
-}
-```
-
 ## `POST /api/v1/logo-similarity/search`
 
 Передаёт файл изображения в `visual-model-service` и возвращает top-K похожих логотипов по
@@ -270,6 +131,31 @@ flowchart TD
 | `400` / `413` / `422` | некорректный файл или payload |
 | `502` | sidecar недоступен или вернул неожиданный статус |
 | `503` | sidecar запущен, но не готов (модель/эмбеддинги не загрузились) |
+| `504` | таймаут запроса к sidecar |
+
+## `GET /api/v1/logo-similarity/preview`
+
+Возвращает бинарное изображение по относительному `logo_path` (например, `data/logos/a.jpg`).
+Ручка используется фронтендом для миниатюр и hover-preview.
+
+### Request
+
+Query params:
+
+- `logo_path`: `string`, обязательный, путь к изображению относительно `assets_root` visual sidecar.
+
+### Response `200 OK`
+
+`image/*` bytes.
+
+### Типичные ошибки
+
+| Status | Когда возникает |
+| --- | --- |
+| `400` | некорректный или пустой `logo_path`, path traversal |
+| `404` | файл не найден в mounted visual assets |
+| `502` | sidecar недоступен или вернул неожиданный статус |
+| `503` | sidecar не готов |
 | `504` | таймаут запроса к sidecar |
 
 ## `POST /api/v1/text-similarity/search`
@@ -322,57 +208,6 @@ flowchart TD
 | `502` | sidecar недоступен или вернул неожиданный статус |
 | `503` | sidecar запущен, но не готов (артефакты или модель не смонтированы) |
 | `504` | таймаут запроса к sidecar |
-
-### Response `200 OK`
-
-```json
-{
-  "request_id": "logo-probimax-main-001",
-  "flow": "logo_comparison",
-  "status": "completed",
-  "reference_logo": {
-    "asset_ref": "logo://protected/probimax-main",
-    "media_type": "image/png",
-    "filename": "probimax.png"
-  },
-  "suspicious_logo": {
-    "asset_ref": "logo://suspicious/probi-market",
-    "media_type": "image/png",
-    "filename": "probi-market.png"
-  },
-  "mktu_codes": [35],
-  "internal_results": [
-    {
-      "candidate_id": "logo-001",
-      "candidate_name": "Internal similar visual mark",
-      "source": "trademark_db",
-      "mktu_codes": [35],
-      "similarity": 88.6,
-      "summary": "Similar visual silhouette and retained text element.",
-      "similarity_breakdown": {
-        "semantic": null,
-        "phonetic": null,
-        "graphic": null,
-        "legal": 85.0,
-        "visual": 88.6
-      }
-    }
-  ],
-  "comparison_summary": "Placeholder Stage 1 response with internal logo matches.",
-  "stage2": {
-    "status": "accepted",
-    "delivery": "webhook",
-    "correlation_id": "logo-probimax-main-001",
-    "partial_results_allowed": true,
-    "webhook_path": "/api/v1/webhooks/stage2-results"
-  },
-  "meta": {
-    "internal_result_count": 1,
-    "result_limit": 200,
-    "stage2_enabled": true
-  }
-}
-```
 
 ## `POST /api/v1/webhooks/stage2-results`
 
