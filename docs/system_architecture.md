@@ -14,7 +14,7 @@
 - проверка нового текстового нейминга на возможность регистрации в РФ;
 - автоматическая проверка неправомерного использования товарного знака.
 
-Дополнительно рассматривается расширение системы на проверку логотипов, возможно в виде отдельного сервиса.
+Проверка логотипов и similarity-поиск по тексту на тестовом стенде уже вынесены в отдельные CPU sidecar-контейнеры (`visual-model-service` и `text-model-service`), которые вызываются из REST API по внутреннему HTTP.
 
 ---
 
@@ -44,6 +44,27 @@
 │  - Preprocessed Naming Store       │
 └────────────────────────────────────┘
 ```
+
+## Развёртывание тестового стенда (Docker)
+
+На тестовом стенде backend и два ML sidecar запускаются в одной Docker-сети `naming-check-net`.
+Снаружи публикуется только порт backend; sidecar порты привязаны к `127.0.0.1` хоста.
+
+```mermaid
+flowchart TD
+  Client[Client] -->|HTTP| FastAPI[FastAPIBackend]
+  FastAPI -->|HTTP internal| VisualSidecar[VisualModelService]
+  FastAPI -->|HTTP internal| TextSidecar[TextModelService]
+  HostArtifacts[HostArtifacts] -->|"mount /opt/visual-model-models -> /app/models"| VisualSidecar
+  HostArtifacts -->|"mount /opt/text-model-models -> /app/models"| TextSidecar
+```
+
+Ключевые параметры тестового стенда:
+
+- `naming-check-backend`: публикуется наружу на `TEST_STAND_BIND_PORT` (по умолчанию `8000`).
+- `visual-model-service`: bind `127.0.0.1:TEST_STAND_VISUAL_BIND_PORT` (по умолчанию `9000`).
+- `text-model-service`: bind `127.0.0.1:TEST_STAND_TEXT_BIND_PORT` (по умолчанию `9100`).
+- артефакты sidecar хранятся на хосте: `/opt/visual-model-models` и `/opt/text-model-models`.
 
 ---
 
@@ -236,9 +257,10 @@
 - Учитываются юридические правила и критерии
 
 ### 6. Возможность разделения на два сервиса
-- Если требования по времени отклика окажутся слишком жесткими, архитектура допускает разделение на:
-  - сервис сравнения текстовых обозначений;
-  - сервис сравнения логотипов.
+- Для тестового стенда это разделение уже реализовано на уровне sidecar-контейнеров:
+  - `visual-model-service` для similarity-поиска по логотипам;
+  - `text-model-service` для similarity-поиска по текстовым эмбеддингам.
+- Целевая прод-архитектура может дополнительно эволюционировать в отдельные сервисы с учётом SLA и инфраструктурных ограничений.
 
 ---
 
@@ -294,5 +316,6 @@
 
 - **2024**: Первоначальная версия архитектуры на основе требований проекта и диаграммы `../diagrams/architecture/puml/naming_check_c4_container.puml`.
 - **2024 (обновленное ТЗ)**: добавлены сценарий проверки нарушений, офлайн-ограничения, многоканальный поиск, требования к предобработке и возможность отдельного сервиса для логотипов.
+- **2026**: зафиксирована фактическая схема тестового стенда с двумя sidecar-контейнерами (`visual-model-service`, `text-model-service`) и хост-монтированием model artifacts.
 
 

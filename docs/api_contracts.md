@@ -22,7 +22,22 @@ flowchart TD
 | `POST` | `/api/v1/registration-check` | Синхронный Stage 1 для проверки возможности регистрации |
 | `POST` | `/api/v1/text-infringement` | Синхронный Stage 1 для попарной текстовой проверки нарушения |
 | `POST` | `/api/v1/logo-comparison` | Синхронный Stage 1 для сравнения логотипов по placeholder-контракту |
+| `POST` | `/api/v1/logo-similarity/search` | Прокси-поиск похожих логотипов через `visual-model-service` |
+| `POST` | `/api/v1/text-similarity/search` | Прокси-поиск похожих названий через `text-model-service` |
 | `POST` | `/api/v1/webhooks/stage2-results` | Приём частичных или финальных результатов Stage 2 |
+
+## Прокси к ML sidecar
+
+Ручки `/logo-similarity/search` и `/text-similarity/search` не участвуют в Stage 2 webhook-контуре и
+возвращают синхронный ответ напрямую из соответствующего sidecar.
+
+```mermaid
+flowchart TD
+  Client[Client] -->|POST similarity| BackendApi[BackendApi]
+  BackendApi -->|HTTP internal| MlSidecar[MlSidecar]
+  MlSidecar -->|JSON result or error| BackendApi
+  BackendApi -->|200 or 4xx/5xx| Client
+```
 
 ## Общие статусы и каналы
 
@@ -216,6 +231,98 @@ flowchart TD
 }
 ```
 
+## `POST /api/v1/logo-similarity/search`
+
+Передаёт файл изображения в `visual-model-service` и возвращает top-K похожих логотипов по
+предвычисленным эмбеддингам.
+
+### Request
+
+`multipart/form-data`:
+
+- `file`: бинарный файл (`png/jpeg/webp/...`)
+- query param `top_k` (`integer >= 1`, опционально, по умолчанию 10)
+
+### Response `200 OK`
+
+```json
+{
+  "top_k": 2,
+  "matches": [
+    {
+      "logo_path": "data/logos/a.jpg",
+      "cosine_similarity": 0.9,
+      "similarity_percent": 90.0
+    },
+    {
+      "logo_path": "data/logos/b.jpg",
+      "cosine_similarity": 0.8,
+      "similarity_percent": 80.0
+    }
+  ]
+}
+```
+
+### Типичные ошибки
+
+| Status | Когда возникает |
+| --- | --- |
+| `400` / `413` / `422` | некорректный файл или payload |
+| `502` | sidecar недоступен или вернул неожиданный статус |
+| `503` | sidecar запущен, но не готов (модель/эмбеддинги не загрузились) |
+| `504` | таймаут запроса к sidecar |
+
+## `POST /api/v1/text-similarity/search`
+
+Передаёт JSON-запрос в `text-model-service` и возвращает top-K похожих названий из текстового индекса.
+
+### Request
+
+```json
+{
+  "query": "EUROPLEX",
+  "mktu_codes": [5, 35],
+  "top_k": 10
+}
+```
+
+### Response `200 OK`
+
+```json
+{
+  "top_k": 2,
+  "matches": [
+    {
+      "name_clean": "europlex",
+      "name_display": "EUROPLEX",
+      "mark_significant": "EUROPLEX",
+      "certificate_link": "https://example.org/cert",
+      "mktu_codes": [5],
+      "cosine_similarity": 0.92,
+      "similarity_percent": 92.0
+    },
+    {
+      "name_clean": "euro plax",
+      "name_display": "EURO PLAX",
+      "mark_significant": "EURO PLAX",
+      "certificate_link": "",
+      "mktu_codes": [35],
+      "cosine_similarity": 0.84,
+      "similarity_percent": 84.0
+    }
+  ]
+}
+```
+
+### Типичные ошибки
+
+| Status | Когда возникает |
+| --- | --- |
+| `400` / `422` | пустой `query` или некорректный JSON payload |
+| `502` | sidecar недоступен или вернул неожиданный статус |
+| `503` | sidecar запущен, но не готов (артефакты или модель не смонтированы) |
+| `504` | таймаут запроса к sidecar |
+
 ### Response `200 OK`
 
 ```json
@@ -336,5 +443,7 @@ unordered delivery и несколько batch-ов по одному `correlati
 - Stage 2 доставляется только через webhook и может быть частичным.
 - Для `logo comparison` `asset_ref` считается временным placeholder-полем до утверждения
   окончательного file transport.
+- Ручки `logo-similarity/search` и `text-similarity/search` зависят от доступности соответствующих
+  sidecar-контейнеров и корректно смонтированных модельных артефактов на хосте.
 - Доменные объекты backend описаны отдельно и маппятся в контракт через адаптерный слой:
   [domain_model.md](domain_model.md).

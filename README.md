@@ -11,6 +11,7 @@
 | `docs/` | Markdown-документы (контекст, ограниченные контексты, язык предметной области, изменения ТЗ и др.), экспорты в `docs/exports/` |
 | `diagrams/` | Исходники PlantUML (`.puml`) и при необходимости экспорт в PNG |
 | `system_architecture.md` | Обзор архитектуры системы (корневой файл) |
+| `diagrams/architecture/puml/naming_check_c4_test_stand_ml_sidecars.puml` | C4-диаграмма тестового стенда: backend + visual/text sidecars |
 
 ## Диаграммы
 

@@ -1,0 +1,34 @@
+@startuml NamingCheck_C4_TestStand_MlSidecars
+title C4 Test Stand - Backend + ML Sidecars
+
+!include <C4/C4_Container>
+
+LAYOUT_TOP_DOWN()
+
+Person(lawyer, "Lawyer", "End user (person)")
+
+System_Boundary(test_stand, "Test Stand") {
+  Container(naming_check_backend, "naming-check-backend", "Python, FastAPI", "Public HTTP API and proxy to ML sidecars")
+  Container(visual_model_service, "visual-model-service", "Python, FastAPI", "Logo similarity search over precomputed embeddings")
+  Container(text_model_service, "text-model-service", "Python, FastAPI", "Text similarity search over precomputed embeddings")
+}
+
+Rel_Down(lawyer, naming_check_backend, "API requests", "HTTPS")
+Rel_Down(naming_check_backend, visual_model_service, "POST /similarity", "HTTP internal")
+Rel_Down(naming_check_backend, text_model_service, "POST /similarity", "HTTP internal")
+
+note right of visual_model_service
+  Host mount:
+  /opt/visual-model-models -> /app/models
+  Host bind:
+  127.0.0.1:9000 -> container:9000
+end note
+
+note right of text_model_service
+  Host mount:
+  /opt/text-model-models -> /app/models
+  Host bind:
+  127.0.0.1:9100 -> container:9000
+end note
+
+@enduml
