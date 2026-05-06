@@ -1,5 +1,5 @@
 @startuml NamingCheck_C4_Context
-title C4 Level 1 (Context) - Naming Check System
+title C4 Level 1 (Context) - Naming Check System (target product vision)
 
 !include <C4/C4_Context>
 
@@ -14,7 +14,7 @@ System_Ext(external_sources, "External Online Sources", "External data providers
 Rel_Down(lawyer, client_ui, "Uses")
 Rel_Down(client_ui, naming_system, "Sends naming check request")
 Rel_Down(naming_system, external_sources, "Async online lookup")
-Rel_Up(naming_system, client_ui, "Stage 1 response + Stage 2 webhook updates (partial allowed)")
+Rel_Up(naming_system, client_ui, "Sync check result + Stage2 webhook updates (partial allowed)")
 
 SHOW_LEGEND()
 

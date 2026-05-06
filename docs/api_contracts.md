@@ -6,23 +6,43 @@
 
 ## Общий поток
 
+Публичный API в текущей реализации — **два независимых контура**.
+
+### Синхронный similarity (основной объём трафика на тестовом стенде)
+
+```mermaid
+flowchart LR
+  Client[Client] -->|multipart_or_JSON| BackendApi[Backend_API]
+  BackendApi -->|internal_HTTP| VisualMl[Visual_sidecar]
+  BackendApi -->|internal_HTTP| TextMl[Text_sidecar]
+  BackendApi -->|200_JSON| Client
+```
+
+Клиент вызывает только `naming-check-backend`. Backend проксирует запросы в `visual-model-service` и `text-model-service` (Docker-сеть стенда).
+
+### Webhook Stage 2 (inbound)
+
 ```mermaid
 flowchart TD
-  Client[Client] -->|POST Stage1| Stage1Api[Stage1Api]
-  Stage1Api -->|200 OK + internalResults| Client
-  Stage1Api -->|enqueue Stage2| AsyncStage2[AsyncStage2]
-  AsyncStage2 -->|webhook partialOrFinal| Stage2Webhook[Stage2Webhook]
-  Stage2Webhook -->|202 Accepted| AsyncStage2
+  AsyncCaller[Async_pipeline_or_integration] -->|"POST /api/v1/webhooks/stage2-results"| BackendApi[Backend_API]
+  BackendApi -->|202_Accepted| AsyncCaller
 ```
+
+**Важно.** Публичного HTTP-эндпоинта, который **инициирует** Stage2 job (постановку внешнего обогащения) в текущей версии backend **нет**: остаётся только **приём** callback на `/api/v1/webhooks/stage2-results` для совместимости с контрактом и возможных внешних продюсеров. Полный async-контур «Stage1 → очередь → worker → webhook» описан в архитектуре как **целевая** модель продукта ([system_architecture.md](system_architecture.md)).
 
 ## Эндпоинты
 
+Актуальный набор соответствует роутингу FastAPI (`v1_router` в backend).
+
 | Method | Path | Назначение |
 | --- | --- | --- |
+| `GET` | `/api/v1/health` | Liveness/readiness smoke (`{"status":"ok"}`) |
 | `POST` | `/api/v1/logo-similarity/search` | Прокси-поиск похожих логотипов через `visual-model-service` |
 | `GET` | `/api/v1/logo-similarity/preview` | Прокси-выдача изображения по `logo_path` для UI preview |
 | `POST` | `/api/v1/text-similarity/search` | Прокси-поиск похожих названий через `text-model-service` |
 | `POST` | `/api/v1/webhooks/stage2-results` | Приём частичных или финальных результатов Stage 2 |
+
+Спецификация OpenAPI: **`/docs`**, **`/redoc`**, **`/openapi.json`** на корне backend (не под префиксом `/api`).
 
 ## Прокси к ML sidecar
 
@@ -274,11 +294,8 @@ unordered delivery и несколько batch-ов по одному `correlati
 
 ## Замечания по совместимости
 
-- Stage 1 контракты описывают синхронный внутренний результат, а не финальный merged output.
-- Stage 2 доставляется только через webhook и может быть частичным.
-- Для `logo comparison` `asset_ref` считается временным placeholder-полем до утверждения
-  окончательного file transport.
-- Ручки `logo-similarity/search` и `text-similarity/search` зависят от доступности соответствующих
-  sidecar-контейнеров и корректно смонтированных модельных артефактов на хосте.
-- Доменные объекты backend описаны отдельно и маппятся в контракт через адаптерный слой:
-  [domain_model.md](domain_model.md).
+- Публичный **Stage1** регистрационный / pairwise API (`/registration-check`, `/text-infringement`, `/logo-comparison`) в текущей версии **не экспонируется**; similarity-ручки возвращают **синхронный** ответ sidecar.
+- Контракт **Stage2 webhook** сохранён для приёма батчей; см. раздел `POST /api/v1/webhooks/stage2-results` и схемы `Stage2WebhookRequest` / `Stage2WebhookResponse`.
+- Поля `ProcessingStatus`, `FlowType`, `MatchCandidate` в webhook и в схемах OpenAPI относятся к **общему** контракту данных; их смысл для продуктового async-контура описан в [system_architecture.md](system_architecture.md) (целевая модель).
+- Ручки `logo-similarity/*` и `text-similarity/search` зависят от доступности sidecar и корректных mount’ов артефактов на хосте; для preview логотипов дополнительно нужен каталог изображений под `ASSETS_ROOT` visual sidecar (см. деплой backend).
+- Интеграционная модель предметной области: [domain_model.md](domain_model.md) (разделение MVP vs цель).

@@ -83,7 +83,7 @@
   - только `webhook`, без polling;
   - частичный внешний результат допустим;
   - порядок доставки внешних результатов не важен.
-  - прикладные JSON-контракты Stage 1 / Stage 2 описаны в `docs/api_contracts.md`.
+  - актуальные HTTP-контракты backend (similarity proxy, preview, webhook inbox) описаны в `system_analysis/docs/api_contracts.md`; там же разделены **реализованный MVP** и **общие схемы данных** для async Stage2.
 - **Поведение внешнего async-сбора**:
   - до `3` попыток запроса к внешнему источнику;
   - `exponential backoff`;

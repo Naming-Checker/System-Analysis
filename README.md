@@ -1,18 +1,29 @@
 # System Analysis
 
-Краткий набор материалов по системному анализу: текстовые документы и диаграммы.
+Материалы по системному анализу: тексты и диаграммы. Актуальное состояние разделено на **текущую реализацию в репозитории** (MVP тестового стенда: similarity через sidecars) и **целевую продуктовую модель** (Stage1 + async Stage2, полный Trademark pipeline).
 
 **Ответственный за результаты по системному анализу:** Илья Печерский.
 
-## Структура
+## С чего начать
+
+| Документ | Назначение |
+|----------|------------|
+| [docs/system_architecture.md](docs/system_architecture.md) | **Канон** архитектуры: сначала MVP, затем целевое видение |
+| [docs/api_contracts.md](docs/api_contracts.md) | Публичные HTTP контракты backend + общие схемы webhook |
+| [docs/domain_model.md](docs/domain_model.md) | MVP vs целевая DDD-модель |
+| [docs/bounded_contexts.md](docs/bounded_contexts.md) | Контексты, включая **ML Similarity Search (реализовано)** |
+
+Корневой [system_architecture.md](system_architecture.md) — короткий указатель на `docs/system_architecture.md`.
+
+## Структура каталогов
 
 | Путь | Содержимое |
 |------|------------|
-| `docs/` | Markdown-документы (контекст, ограниченные контексты, язык предметной области, изменения ТЗ и др.), экспорты в `docs/exports/` |
-| `diagrams/` | Исходники PlantUML (`.puml`) и при необходимости экспорт в PNG |
-| `system_architecture.md` | Обзор архитектуры системы (корневой файл) |
-| `diagrams/architecture/puml/naming_check_c4_test_stand_ml_sidecars.puml` | C4-диаграмма тестового стенда: backend + visual/text sidecars |
+| `docs/` | Markdown: контекст проекта, bounded contexts, ubiquitous language, API, доменная модель |
+| `diagrams/architecture/puml/` | C4 и компонентные диаграммы: **test stand + текущий REST** и **target product** (подписано в title) |
+| `diagrams/sequences/` | Актуальные sequence для MVP: `sequence_logo_similarity_and_preview.puml`, `sequence_text_similarity_search.puml` |
+| `diagrams/sequences/legacy/` | Продуктовые сценарии (регистрация, нарушение, logo comparison, полный async) — **не** отражают текущий публичный API; см. [legacy/README.md](diagrams/sequences/legacy/README.md) |
 
 ## Диаграммы
 
-Файлы `.puml` открываются в редакторе с поддержке PlantUML или через [PlantUML](https://plantuml.com/). При необходимости сгенерируйте PNG из исходников и положите рядом в подкаталоги `diagrams/**/png/`.
+Файлы `.puml` открываются в редакторе с поддержкой PlantUML или через [PlantUML](https://plantuml.com/). При необходимости сгенерируйте PNG и положите в подкаталоги `diagrams/**/png/`.

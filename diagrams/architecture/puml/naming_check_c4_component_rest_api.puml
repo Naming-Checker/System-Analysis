@@ -1,40 +1,35 @@
 @startuml NamingCheck_REST_API_Components
-title C4 Level 3 (Component) - REST API
+title C4 Level 3 (Component) - REST API (current backend MVP)
 
 !include <C4/C4_Component>
 
 LAYOUT_TOP_DOWN()
 
-AddRelTag("async", $lineStyle=DashedLine(), $legendText="Asynchronous processing or webhook delivery")
+Person(client, "Client", "UI, curl, integrator")
 
-Person(lawyer, "Lawyer", "End user (person)")
-
-Container_Boundary(rest_api_boundary, "REST API") {
-  Component(req_validator, "Request Validator", "Python", "Validates and normalizes incoming requests")
-  Component(scenario_router, "Scenario Router", "Python", "Routes to registration or infringement flows")
-  Component(stage1_orchestrator, "Stage 1 Orchestrator", "Python", "Coordinates internal text check and Top-200")
-  Component(stage2_job_dispatcher, "Stage 2 Job Dispatcher", "Python", "Builds dedup key from naming + MKTU and enqueues Stage 2 jobs")
-  Component(callback_handler, "Callback Handler", "Python", "Handles inbound webhook updates idempotently and accepts partial unordered results")
+Container_Boundary(rest_api_boundary, "naming-check-backend (FastAPI)") {
+  Component(http_routes, "HTTP Route Handlers", "Python", "logo-similarity search+preview, text-similarity search, health, stage2 webhook")
+  Component(visual_client, "Visual Sidecar Client", "httpx", "POST multipart to /similarity; GET /asset for preview bytes")
+  Component(text_client, "Text Sidecar Client", "httpx", "POST JSON to /similarity")
+  Component(webhook_uc, "WebhookCallbackProcessingUseCase", "Python", "Accepts Stage2 batches; 202 Accepted")
 }
 
-Container(text_service, "Text Check Service", "Python", "Text-only analysis and candidate search")
-ContainerQueue(queue, "Async Job Queue", "Message queue", "Buffers external search jobs")
-Container(delivery, "Result Delivery Service", "Python service", "Sends partial or final webhook callbacks to REST API")
+Container(visual_sidecar, "visual-model-service", "FastAPI", "CPU similarity + asset files")
+Container(text_sidecar, "text-model-service", "FastAPI", "CPU text similarity")
 
-Rel_Down(lawyer, req_validator, "Sends REST request", "HTTPS/JSON")
-Rel_Down(req_validator, scenario_router, "Valid request")
+Rel_Down(client, http_routes, "HTTPS /api/v1/...", "HTTPS/JSON or multipart")
+Rel_Down(http_routes, visual_client, "Forward logo search / preview")
+Rel_Down(http_routes, text_client, "Forward text search")
+Rel_Down(http_routes, webhook_uc, "POST .../webhooks/stage2-results")
 
-Rel_Down(scenario_router, stage1_orchestrator, "Route to naming check flow")
-Rel_Down(stage1_orchestrator, text_service, "Text check (canonical input)")
-Rel_Up(text_service, stage1_orchestrator, "Internal Top-200")
+Rel_Down(visual_client, visual_sidecar, "HTTP internal", "Docker network")
+Rel_Down(text_client, text_sidecar, "HTTP internal", "Docker network")
 
-Rel_Down(scenario_router, stage2_job_dispatcher, "If external stage required")
-Rel_Down(stage2_job_dispatcher, queue, "Enqueue deduplicated external job", "", "", "", "async")
-
-Rel_Down(delivery, callback_handler, "Webhook callback (partial/final)", "HTTPS", "", "", "async")
-Rel_Up(callback_handler, lawyer, "Stage 2 completion exposed via API", "HTTPS/JSON")
+note right of http_routes
+  No in-process Stage1 orchestrator
+  or job queue in this codebase path.
+end note
 
 SHOW_LEGEND()
 
 @enduml
-

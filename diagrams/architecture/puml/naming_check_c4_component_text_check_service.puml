@@ -1,5 +1,5 @@
 @startuml NamingCheck_Text_Check_Service_Components
-title C4 Level 3 (Component) - Text Check Service
+title C4 Level 3 (Component) - Text Check Service (target product decomposition)
 
 !include <C4/C4_Component>
 

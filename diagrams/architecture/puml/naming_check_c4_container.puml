@@ -1,5 +1,5 @@
 @startuml NamingCheck_C4_Container
-title C4 Level 2 (Container) - Naming Check System
+title C4 Level 2 (Container) - Naming Check System (target product vision)
 
 !include <C4/C4_Container>
 
@@ -10,7 +10,7 @@ AddRelTag("async", $lineStyle=DashedLine(), $legendText="Asynchronous processing
 Person(lawyer, "Lawyer", "End user (person)")
 
 System_Boundary(naming_system, "Naming Check System") {
-  Container(rest_api, "REST API", "Python, FastAPI", "Returns Stage 1 and accepts Stage 2 webhook updates")
+  Container(rest_api, "REST API", "Python, FastAPI", "Stage1-style sync response + enqueues Stage2 + accepts webhook callbacks (target)")
   Container(text_service, "Text Check Service", "Python", "Text-only analysis and candidate search")
   ContainerQueue(queue, "Async Job Queue", "Message queue", "Buffers deduplicated external jobs and is monitored for DLQ growth")
   Container(worker, "External Search Worker", "Python worker", "Executes external retrieval with 3 retries, exponential backoff and 60s per-source timeout")
@@ -36,7 +36,7 @@ Rel_Down(worker, async_store, "Store partial or final external results", "", "",
 Rel_Down(worker, delivery, "Publish unordered external updates", "", "", "", "async")
 Rel_Up(delivery, rest_api, "Webhook callback (partial/final)", "HTTPS", "", "", "async")
 
-Rel_Up(rest_api, lawyer, "Stage 1 response + Stage 2 completion", "HTTPS")
+Rel_Up(rest_api, lawyer, "Sync internal result + async Stage2 updates", "HTTPS")
 
 SHOW_LEGEND()
 

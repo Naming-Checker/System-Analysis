@@ -1,6 +1,20 @@
 # Domain Model
 
-Документ фиксирует DDD-first модель для трех Stage 1 сценариев:
+## Соответствие текущему backend (MVP тестового стенда)
+
+Публичное API сейчас **не** создаёт агрегат `CheckRequest` по HTTP. Вместо этого backend выступает **прокси**:
+
+- **Logo similarity**: multipart-запрос → `visual-model-service` → JSON с `logo_path` и score; опционально превью через прокси (`GET /asset` на sidecar).
+- **Text similarity**: JSON-запрос → `text-model-service` → JSON с кандидатами.
+- **Stage2 webhook**: точка приёма асинхронных батчей по уже зафиксированному контракту (`Stage2WebhookRequest`); оркестрация внешнего контура из этого API **не инициируется**.
+
+Доменные сущности в этом контуре минимальны: по сути **запрос-ответ** и **валидация транспорта**; богатая модель ниже относится к **целевому** продукту.
+
+---
+
+## Целевая DDD-модель (Stage1 сценарии + Stage2)
+
+Документ ниже фиксирует DDD-first модель для трёх **продуктовых** Stage1 сценариев:
 
 - `registration_check`
 - `text_infringement`
@@ -196,15 +210,28 @@ stateDiagram-v2
   partial --> failed
 ```
 
-## 6. Mapping: Domain Model -> API Contract
+## 6. Mapping: доменная модель → HTTP-контракты
 
-- `CheckRequest.request_id` -> `request_id`
-- `CheckRequest.flow` -> `flow`
-- `CheckRequest.status` -> `status`
-- `ConflictResultSet.candidates` -> `internal_results`
-- `SimilarityScore.total` -> `MatchCandidate.similarity`
-- `SimilarityBreakdown` -> `MatchCandidate.similarity_breakdown`
-- `Stage2Job.correlation_id` -> `stage2.correlation_id`
-- `Stage2Job.partial_results_allowed` -> `stage2.partial_results_allowed`
+### Webhook и общие схемы OpenAPI
 
-Для текущего API допускаются транспортные адаптеры (`DTO <-> Domain`), если доменная модель богаче контракта.
+Схемы `MatchCandidate`, `ProcessingStatus`, `FlowType`, ошибки и webhook по-прежнему живут в OpenAPI как **общий язык данных** между продюсером Stage2 и backend. Отображение:
+
+- `ConflictResultSet.candidates` ↔ поля массива `matches` в webhook.
+- `SimilarityBreakdown` ↔ `similarity_breakdown` у кандидата.
+- Корреляция ↔ `correlation_id`, `partial` в webhook payload.
+
+Агрегат `CheckRequest` в этом приёме может существовать только **внутри** приложения, если добавят персистентность; текущая реализация webhook может быть упрощённой.
+
+### Целевой Stage1 REST (ещё не в публичном API)
+
+Когда регистрация / нарушение / logo comparison вернутся как HTTP:
+
+- `CheckRequest.request_id` → `request_id`
+- `CheckRequest.flow` → `flow`
+- `ConflictResultSet.candidates` → `internal_results`
+- `SimilarityScore.total` → `MatchCandidate.similarity`
+- и т.д., как ранее проектировалось.
+
+### Similarity MVP (текущий JSON sidecar)
+
+Ответы `logo-similarity/search` и `text-similarity/search` **не** маппятся на `ConflictResultSet`: это прямой прокси ответа sidecar (top-K, пути, скоры).

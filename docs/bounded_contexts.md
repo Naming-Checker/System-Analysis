@@ -7,7 +7,22 @@
 
 ---
 
-## 1. Naming Registration Check Context
+## 0. ML Similarity Search Context (реализовано в репозитории, тестовый стенд)
+
+**Назначение**: синхронный top-K поиск по **предвычисленным** эмбеддингам логотипов и текста через отдельные CPU-сервисы.
+
+**Границы**:
+- `naming-check-backend` — HTTP facade, прокси, webhook inbox;
+- `visual-model-service` — поиск по логам + выдача файла по относительному пути для preview;
+- `text-model-service` — поиск по текстовому индексу.
+
+**Термины**: query image, query text, embedding index, `top_k`, `logo_path`.
+
+**Отличие от продуктовых контекстов ниже**: здесь нет полного Trademark DB pipeline и Stage1-оркестрации из монолита — только retrieval по заранее собранным артефактам.
+
+---
+
+## 1. Naming Registration Check Context (целевой продукт)
 
 **Назначение**: Проверка нового текстового нейминга на возможность регистрации в РФ.
 
@@ -28,7 +43,7 @@
 
 ---
 
-## 2. Trademark Infringement Check Context
+## 2. Trademark Infringement Check Context (целевой продукт)
 
 **Назначение**: Проверка потенциального неправомерного использования товарного знака.
 
@@ -47,7 +62,7 @@
 
 ---
 
-## 3. Logo Comparison Context
+## 3. Logo Comparison Context (целевой продукт)
 
 **Назначение**: Сравнение логотипов и комбинированных обозначений.
 
@@ -177,13 +192,7 @@ Logo Comparison Context
 
 ## 10. Связь с доменной моделью
 
-Для реализации в backend используется единая DDD-модель с общими объектами:
-
-- aggregate root `CheckRequest`;
-- результат `ConflictResultSet`;
-- async-единица `Stage2Job`;
-- value objects: `NamingText`, `MktuClassSet`, `LogoAssetRef`, `SimilarityScore`.
-
-Подробная спецификация: [domain_model.md](domain_model.md).
+- **Текущий код (MVP)**: см. раздел «ML Similarity Search Context» и вводку в [domain_model.md](domain_model.md).
+- **Целевая реализация Stage1**: единая DDD-модель с `CheckRequest`, `ConflictResultSet`, `Stage2Job`, VO `NamingText`, `MktuClassSet`, `LogoAssetRef`, `SimilarityScore` — в том же `domain_model.md`, раздел «Целевая DDD-модель».
 
 

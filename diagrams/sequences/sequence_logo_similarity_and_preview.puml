@@ -1,0 +1,21 @@
+@startuml SequenceLogoSimilarityAndPreview
+title Current MVP - Logo similarity search and optional preview
+
+autonumber
+actor Client as client
+participant "naming-check-backend" as api
+participant "visual-model-service" as visual
+
+client -> api: POST /api/v1/logo-similarity/search\n(multipart file, top_k)
+api -> visual: POST /similarity\n(same file, top_k)
+visual --> api: 200 JSON matches (logo_path, scores)
+api --> client: 200 JSON
+
+opt UI thumbnail
+  client -> api: GET /api/v1/logo-similarity/preview?logo_path=...
+  api -> visual: GET /asset?logo_path=...
+  visual --> api: 200 image bytes
+  api --> client: 200 image bytes
+end
+
+@enduml

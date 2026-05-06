@@ -1,34 +1,41 @@
 @startuml NamingCheck_C4_TestStand_MlSidecars
-title C4 Test Stand - Backend + ML Sidecars
+title C4 Test Stand - Backend + ML Sidecars (current MVP)
 
 !include <C4/C4_Container>
 
 LAYOUT_TOP_DOWN()
 
-Person(lawyer, "Lawyer", "End user (person)")
+Person(user, "Developer or UI", "Manual or automated client")
 
 System_Boundary(test_stand, "Test Stand") {
-  Container(naming_check_backend, "naming-check-backend", "Python, FastAPI", "Public HTTP API and proxy to ML sidecars")
-  Container(visual_model_service, "visual-model-service", "Python, FastAPI", "Logo similarity search over precomputed embeddings")
-  Container(text_model_service, "text-model-service", "Python, FastAPI", "Text similarity search over precomputed embeddings")
+  Container(naming_check_backend, "naming-check-backend", "Python, FastAPI", "Public API: similarity proxy, preview proxy, Stage2 webhook inbox, health")
+  Container(visual_model_service, "visual-model-service", "Python, FastAPI", "Logo top-K over embeddings; static file by logo_path")
+  Container(text_model_service, "text-model-service", "Python, FastAPI", "Text top-K over embeddings index")
 }
 
-Rel_Down(lawyer, naming_check_backend, "API requests", "HTTPS")
-Rel_Down(naming_check_backend, visual_model_service, "POST /similarity", "HTTP internal")
-Rel_Down(naming_check_backend, text_model_service, "POST /similarity", "HTTP internal")
+Rel_Down(user, naming_check_backend, "HTTPS /api/v1/...", "HTTPS")
+Rel_Down(naming_check_backend, visual_model_service, "POST /similarity, GET /asset", "HTTP Docker network")
+Rel_Down(naming_check_backend, text_model_service, "POST /similarity", "HTTP Docker network")
 
 note right of visual_model_service
-  Host mount:
+  Host mounts (typical):
   /opt/visual-model-models -> /app/models
-  Host bind:
-  127.0.0.1:9000 -> container:9000
+    (logos_embedding.pt, logos_embedding.csv)
+  /opt/visual-model-data -> /app/assets
+    (tree for paths e.g. data/logos/...)
+  Host bind: 127.0.0.1:9000 -> :9000
 end note
 
 note right of text_model_service
   Host mount:
   /opt/text-model-models -> /app/models
-  Host bind:
-  127.0.0.1:9100 -> container:9000
+  Host bind: 127.0.0.1:9100 -> :9000
+end note
+
+note bottom of naming_check_backend
+  Preview path for UI:
+  GET /api/v1/logo-similarity/preview
+  proxies to visual GET /asset?logo_path=...
 end note
 
 @enduml

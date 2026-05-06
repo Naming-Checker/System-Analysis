@@ -1,0 +1,14 @@
+@startuml SequenceTextSimilaritySearch
+title Current MVP - Text similarity search
+
+autonumber
+actor Client as client
+participant "naming-check-backend" as api
+participant "text-model-service" as text
+
+client -> api: POST /api/v1/text-similarity/search\nJSON {query, mktu_codes, top_k}
+api -> text: POST /similarity\n(same payload / proxied)
+text --> api: 200 JSON matches
+api --> client: 200 JSON
+
+@enduml
