@@ -1,6 +1,6 @@
 # План внедрения централизованного логирования (ELK Stack)
 
-> **Статус**: план / исследование. Реализация **не начата**.  
+> **Статус**: фазы 1–2 **реализованы** в backend; фаза 3 (дашборды Kibana) — вручную после деплоя.  
 > **Связанные документы**: [system_architecture.md](system_architecture.md), [backend/.github/workflows/deploy-test-stand.yml](../../backend/.github/workflows/deploy-test-stand.yml).
 
 ---
@@ -278,16 +278,16 @@ Kibana будет доступна после деплоя по адресу `ht
 
 ### Фаза 1 — Инфраструктура на стенде
 
-- [ ] `backend/infra/logging/docker-compose.elk.yml` + `filebeat.yml`.
-- [ ] Обновить `bootstrap-test-stand-ubuntu.sh` (`vm.max_map_count`, каталоги).
-- [ ] Расширить `deploy-test-stand.yml`: sync + `compose up` + verify Kibana.
-- [ ] GitHub Secrets для паролей ELK.
+- [x] `backend/infra/logging/docker-compose.elk.yml` + `filebeat.yml`.
+- [x] Обновить `bootstrap-test-stand-ubuntu.sh` (`vm.max_map_count`, каталоги).
+- [x] Расширить `deploy-test-stand.yml`: sync + `compose up` + verify Kibana.
+- [x] GitHub Secrets для паролей ELK (`TEST_STAND_ELK_ENV_FILE`).
 
 ### Фаза 2 — Структурированные логи в приложениях
 
-- [ ] Единый JSON-логгер в `naming-check-backend` (middleware: request_id, duration, status).
-- [ ] Привести sidecars к той же схеме полей.
-- [ ] Прокидывание `X-Request-ID` backend → sidecars.
+- [x] Единый JSON-логгер в `naming-check-backend` (middleware: request_id, duration, status).
+- [x] Привести sidecars к той же схеме полей.
+- [x] Прокидывание `X-Request-ID` backend → sidecars.
 
 ### Фаза 3 — Kibana UX
 
@@ -343,3 +343,4 @@ Kibana будет доступна после деплоя по адресу `ht
 | --- | --- |
 | 2026-06-03 | Первая версия плана: ELK + Filebeat, автозапуск Kibana через Docker Compose в деплое, фазы реализации. |
 | 2026-06-03 | Зафиксированы решения: тот же VPS, SSH-туннель, retention 1 день, без Logstash, Stack 8.17.x. |
+| 2026-06-03 | Реализованы фазы 1–2: `backend/infra/logging/`, деплой ELK, JSON-логи во всех сервисах. |

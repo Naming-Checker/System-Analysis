@@ -145,7 +145,7 @@ OpenAPI интерактивно: `GET /docs`, `GET /redoc`, `GET /openapi.json`
 
 ### Централизованное логирование (план)
 
-Реализация **не начата**. Планируется **ELK Stack 8.17.x** (Elasticsearch + Filebeat + Kibana, без Logstash) на **том же VPS**: JSON-логи из stdout контейнеров, retention **1 день**, Kibana на `127.0.0.1:5601` (доступ через SSH-туннель), автозапуск через Docker Compose в деплое. Подробности: [logging_elk_plan.md](logging_elk_plan.md).
+**ELK Stack 8.17.x** (Elasticsearch + Filebeat + Kibana, без Logstash) на **том же VPS**: JSON-логи из stdout контейнеров, retention **1 день**, Kibana на `127.0.0.1:5601` (SSH-туннель), автозапуск через Docker Compose в [`backend/.github/workflows/deploy-test-stand.yml`](../../backend/.github/workflows/deploy-test-stand.yml). Data view в Kibana — вручную (`logs-naming-check-*`). Подробности: [logging_elk_plan.md](logging_elk_plan.md).
 
 ---
 
@@ -162,3 +162,4 @@ OpenAPI интерактивно: `GET /docs`, `GET /redoc`, `GET /openapi.json`
 - **2026**: Зафиксирован тестовый стенд с sidecars и монтированием моделей / датасета логотипов.
 - **2026 (актуализация)**: Разведены **текущий MVP API** и **целевая продуктовая архитектура**; публичные Stage1 endpoints сняты с backend до появления реализации.
 - **2026-06-03**: Добавлен план централизованного логирования ELK — [logging_elk_plan.md](logging_elk_plan.md).
+- **2026-06-03**: Реализованы ELK на тестовом стенде и JSON-логирование в backend/sidecars.
