@@ -143,6 +143,10 @@ OpenAPI интерактивно: `GET /docs`, `GET /redoc`, `GET /openapi.json`
 
 Тестовый стенд: CPU-only sidecars без обязательного GPU для similarity MVP.
 
+### Централизованное логирование (план)
+
+Реализация **не начата**. Планируется **ELK Stack 8.17.x** (Elasticsearch + Filebeat + Kibana, без Logstash) на **том же VPS**: JSON-логи из stdout контейнеров, retention **1 день**, Kibana на `127.0.0.1:5601` (доступ через SSH-туннель), автозапуск через Docker Compose в деплое. Подробности: [logging_elk_plan.md](logging_elk_plan.md).
+
 ---
 
 ## Связь с Ubiquitous Language
@@ -157,3 +161,4 @@ OpenAPI интерактивно: `GET /docs`, `GET /redoc`, `GET /openapi.json`
 - **2024 (ТЗ)**: Нарушения, офлайн, многоканальный поиск, предобработка, логотипы.
 - **2026**: Зафиксирован тестовый стенд с sidecars и монтированием моделей / датасета логотипов.
 - **2026 (актуализация)**: Разведены **текущий MVP API** и **целевая продуктовая архитектура**; публичные Stage1 endpoints сняты с backend до появления реализации.
+- **2026-06-03**: Добавлен план централизованного логирования ELK — [logging_elk_plan.md](logging_elk_plan.md).

@@ -12,6 +12,7 @@
 | [docs/api_contracts.md](docs/api_contracts.md) | Публичные HTTP контракты backend + общие схемы webhook |
 | [docs/domain_model.md](docs/domain_model.md) | MVP vs целевая DDD-модель |
 | [docs/bounded_contexts.md](docs/bounded_contexts.md) | Контексты, включая **ML Similarity Search (реализовано)** |
+| [docs/logging_elk_plan.md](docs/logging_elk_plan.md) | **План** централизованного логирования (ELK, автозапуск Kibana при деплое) |
 
 Корневой [system_architecture.md](system_architecture.md) — короткий указатель на `docs/system_architecture.md`.
 
