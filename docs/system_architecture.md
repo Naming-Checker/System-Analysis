@@ -145,7 +145,7 @@ OpenAPI интерактивно: `GET /docs`, `GET /redoc`, `GET /openapi.json`
 
 ### Централизованное логирование (план)
 
-**ELK Stack 8.17.x** (Elasticsearch + Filebeat + Kibana, без Logstash) на **том же VPS**: JSON-логи из stdout контейнеров, retention **1 день**, Kibana на `127.0.0.1:5601` (SSH-туннель), автозапуск через Docker Compose в [`backend/.github/workflows/deploy-test-stand.yml`](../../backend/.github/workflows/deploy-test-stand.yml). Data view в Kibana — вручную (`logs-naming-check-*`). Подробности: [logging_elk_plan.md](logging_elk_plan.md).
+**ELK Stack 8.17.x** (Elasticsearch + Filebeat + Kibana, без Logstash) на **том же VPS**: JSON-логи из stdout контейнеров, retention **1 день**, Kibana на **`:5601`** (публичный IP хоста, логин `elastic`), автозапуск через Docker Compose в [`backend/.github/workflows/deploy-test-stand.yml`](../../backend/.github/workflows/deploy-test-stand.yml). Data view в Kibana — вручную (`logs-naming-check-*`). Подробности: [logging_elk_plan.md](logging_elk_plan.md).
 
 ---
 

@@ -1,6 +1,6 @@
 # План внедрения централизованного логирования (ELK Stack)
 
-> **Статус**: фазы 1–2 **реализованы** в backend; фаза 3 (дашборды Kibana) — вручную после деплоя.  
+> **Статус**: фазы 1–2 **реализованы**; на тестовом стенде (`45.91.236.105`) **индексация и Kibana Discover работают** (2026-06-09). Фаза 3 (saved searches / дашборды) — опционально.  
 > **Связанные документы**: [system_architecture.md](system_architecture.md), [backend/.github/workflows/deploy-test-stand.yml](../../backend/.github/workflows/deploy-test-stand.yml).
 
 ---
@@ -24,11 +24,11 @@
 
 | Сервис | Состояние |
 | --- | --- |
-| `naming-check-backend` | Явная настройка логирования **отсутствует**; FastAPI/Uvicorn пишут в stdout по умолчанию. |
-| `visual-model-service` | `logging.basicConfig(level=LOG_LEVEL)` → stdout. |
-| `text-model-service` | То же. |
+| `naming-check-backend` | JSON в stdout (`json_logging.py`, `RequestLoggingMiddleware`, `X-Request-ID` в httpx-клиентах). |
+| `visual-model-service` | Та же схема полей. |
+| `text-model-service` | Та же схема полей. |
 
-Формат: **неструктурированный текст**, без единой схемы полей и без корреляции запросов между backend и sidecars.
+Формат: **структурированный JSON** с полями `service`, `level`, `message`, `request_id`, `method`, `path`, `status_code`, `duration_ms`.
 
 ### 2.2. Деплой тестового стенда
 
@@ -91,7 +91,7 @@ flowchart LR
 | Сервис | Порт (план) | Доступ |
 | --- | --- | --- |
 | Elasticsearch | `9200` | Только `127.0.0.1` или только внутри `naming-check-net` |
-| Kibana | `5601` | `127.0.0.1:5601`; доступ команды только через **SSH-туннель** |
+| Kibana | `5601` | `0.0.0.0:5601` → `http://<публичный-IP>:5601` (логин `elastic`) |
 | Filebeat | — | Без публикации портов |
 
 Все контейнеры ELK подключаются к **`naming-check-net`**, чтобы Filebeat видел логи контейнеров приложения.
@@ -221,7 +221,20 @@ volumes:
   es-data:
 ```
 
-Kibana будет доступна после деплоя по адресу `http://127.0.0.1:5601` на сервере (SSH-туннель: `ssh -L 5601:127.0.0.1:5601 user@host`).
+Kibana доступна после деплоя по адресу `http://<TEST_STAND_HOST>:5601` (логин `elastic`, пароль из `TEST_STAND_ELK_ENV_FILE`).
+
+### 4.5. Filebeat: pipeline и типичные проблемы
+
+Финальная конфигурация: `backend/infra/logging/filebeat.yml`.
+
+| Проблема | Симптом | Решение |
+| --- | --- | --- |
+| Устаревший input `container` | Filebeat crash-loop | `command: ["-e", "--strict.perms=false", "-c", "/usr/share/filebeat/filebeat.yml"]`, input `filestream` |
+| `add_docker_metadata` не находит контейнер | `drop_event` по `container.name` отбрасывает всё | `match_source: true`, `match_source_index: 5` (container ID в пути `/var/lib/docker/containers/<id>/...`) |
+| Логи ES/Kibana/uvicorn в индексе | `output.events.dropped`, mapping conflicts | `drop_event` после `decode_json_fields`: оставлять только `service` ∈ {`naming-check-backend`, `visual-model-service`, `text-model-service`} |
+| Дублирование поля `log` | Сырой JSON в Discover | `drop_fields: [log, stream, time]` после decode |
+
+Диагностика на хосте: `bash infra/logging/scripts/diagnose-filebeat.sh`.
 
 ### 4.4. Изменения в CI/CD (план)
 
@@ -291,9 +304,10 @@ Kibana будет доступна после деплоя по адресу `ht
 
 ### Фаза 3 — Kibana UX
 
-- [ ] Index pattern / data view `logs-naming-check-*`.
+- [x] Data view `logs-naming-check-*` + Discover по умолчанию (`setup-kibana.sh`).
 - [ ] Saved searches: ошибки, 5xx, медленные запросы (`duration_ms > 3000`).
 - [ ] Базовый дашборд: RPS, error rate, latency p95 по сервисам.
+- [ ] Distributed tracing (APM) — не в MVP; корреляция через `request_id` в логах.
 
 ### Фаза 4 — Алерты (связь с NFR ТЗ)
 
@@ -330,7 +344,7 @@ Kibana будет доступна после деплоя по адресу `ht
 | Тема | Решение |
 | --- | --- |
 | **Размещение** | ELK на **том же VPS**, что `naming-check-backend` и ML sidecars. |
-| **Доступ к Kibana** | Только **SSH-туннель** на `127.0.0.1:5601`; reverse proxy не используем. |
+| **Доступ к Kibana** | Публичный **`http://<TEST_STAND_HOST>:5601`**; TCP 5601 в firewall/SG; reverse proxy не используем. |
 | **Retention логов** | **1 день** (ILM / удаление индексов старше 24 часов). |
 | **Logstash** | **Не планируется** (ни сейчас, ни в горизонте ближайших 6 месяцев). |
 | **Версия Stack** | **8.17.x** — зафиксирована для Elasticsearch, Kibana и Filebeat. |
@@ -344,3 +358,5 @@ Kibana будет доступна после деплоя по адресу `ht
 | 2026-06-03 | Первая версия плана: ELK + Filebeat, автозапуск Kibana через Docker Compose в деплое, фазы реализации. |
 | 2026-06-03 | Зафиксированы решения: тот же VPS, SSH-туннель, retention 1 день, без Logstash, Stack 8.17.x. |
 | 2026-06-03 | Реализованы фазы 1–2: `backend/infra/logging/`, деплой ELK, JSON-логи во всех сервисах. |
+| 2026-06-03 | Kibana: публикация на `:5601` (публичный IP), вместо SSH-туннеля. |
+| 2026-06-09 | Filebeat pipeline исправлен (`match_source_index`, фильтр по `service`); индексация и data view в Kibana проверены на стенде. |
