@@ -236,6 +236,17 @@ Kibana доступна после деплоя по адресу `http://<TEST_
 
 Диагностика на хосте: `bash infra/logging/scripts/diagnose-filebeat.sh`.
 
+### 4.6. Elastic APM (трейсы)
+
+| Компонент | Роль |
+| --- | --- |
+| **APM Server** (`apm-server:8200`) | Принимает события от агентов, пишет в Elasticsearch |
+| **elastic-apm** (Python agent) | Транзакция на каждый HTTP-запрос, span'ы на httpx-вызовы |
+| **Kibana → Observability → APM** | UI: latency, errors, waterfall по ручкам |
+
+Включение в приложениях: `ELASTIC_APM_ENABLED=true`, `ELASTIC_APM_SERVER_URL=http://apm-server:8200`.  
+JSON-логи дополняются полями `trace.id` и `transaction.id` для перехода из Discover в APM.
+
 ### 4.4. Изменения в CI/CD (план)
 
 | Шаг | Действие |
@@ -307,7 +318,7 @@ Kibana доступна после деплоя по адресу `http://<TEST_
 - [x] Data view `logs-naming-check-*` + Discover по умолчанию (`setup-kibana.sh`).
 - [ ] Saved searches: ошибки, 5xx, медленные запросы (`duration_ms > 3000`).
 - [ ] Базовый дашборд: RPS, error rate, latency p95 по сервисам.
-- [ ] Distributed tracing (APM) — не в MVP; корреляция через `request_id` в логах.
+- [x] **Elastic APM**: APM Server + `elastic-apm` agent; транзакции по HTTP-ручкам, span'ы httpx между сервисами; `trace.id` в логах.
 
 ### Фаза 4 — Алерты (связь с NFR ТЗ)
 
@@ -360,3 +371,4 @@ Kibana доступна после деплоя по адресу `http://<TEST_
 | 2026-06-03 | Реализованы фазы 1–2: `backend/infra/logging/`, деплой ELK, JSON-логи во всех сервисах. |
 | 2026-06-03 | Kibana: публикация на `:5601` (публичный IP), вместо SSH-туннеля. |
 | 2026-06-09 | Filebeat pipeline исправлен (`match_source_index`, фильтр по `service`); индексация и data view в Kibana проверены на стенде. |
+| 2026-06-09 | Elastic APM: `apm-server` в compose, `elastic-apm` agent в backend и sidecars, `trace.id` в JSON-логах. |
